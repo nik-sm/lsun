@@ -5,6 +5,7 @@ import lmdb
 import numpy
 import os
 from os.path import exists, join
+from tqdm import tqdm
 
 __author__ = 'Fisher Yu'
 __email__ = 'fy@cs.princeton.edu'
@@ -30,14 +31,14 @@ def view(db_path):
                 break
 
 
-def export_images(db_path, out_dir, flat=False, limit=-1):
+def export_images(db_path, out_dir, n_images, flat=False):
     print('Exporting', db_path, 'to', out_dir)
     env = lmdb.open(db_path, map_size=1099511627776,
                     max_readers=100, readonly=True)
     count = 0
     with env.begin(write=False) as txn:
         cursor = txn.cursor()
-        for key, val in cursor:
+        for key, val in tqdm(cursor, total=n_images):
             if not flat:
                 image_out_dir = join(out_dir, '/'.join(key[:6].decode()))
             else:
@@ -48,10 +49,8 @@ def export_images(db_path, out_dir, flat=False, limit=-1):
             img = cv2.imdecode(numpy.fromstring(val, dtype=numpy.uint8), 1)
             cv2.imwrite(image_out_path, img)
             count += 1
-            if count == limit:
+            if count == n_images:
                 break
-            if count % 1000 == 0:
-                print('Finished', count, 'images')
 
 
 def main():
@@ -71,7 +70,7 @@ def main():
                         help='If enabled, the images are imported into output '
                              'directory directly instead of hierarchical '
                              'directories.')
-    parser.add_argument('--n_image', default=210526)
+    parser.add_argument('--n_images', type=int, default=210526) # Gives exactly 200K training after a 95/5 split
     args = parser.parse_args()
 
     command = args.command
@@ -81,7 +80,7 @@ def main():
         if command == 'view':
             view(lmdb_path)
         elif command == 'export':
-            export_images(lmdb_path, args.out_dir, args.flat, args.n_image)
+            export_images(lmdb_path, args.out_dir, args.n_images, args.flat)
 
 
 if __name__ == '__main__':
