@@ -39,14 +39,14 @@ def export_images(db_path, out_dir, flat=False, limit=-1):
         cursor = txn.cursor()
         for key, val in cursor:
             if not flat:
-                image_out_dir = join(out_dir, '/'.join(key[:6]))
+                image_out_dir = join(out_dir, '/'.join(key[:6].decode()))
             else:
                 image_out_dir = out_dir
             if not exists(image_out_dir):
                 os.makedirs(image_out_dir)
-            image_out_path = join(image_out_dir, key + '.webp')
-            with open(image_out_path, 'w') as fp:
-                fp.write(val)
+            image_out_path = join(image_out_dir, key.decode() + '.png')
+            img = cv2.imdecode(numpy.fromstring(val, dtype=numpy.uint8), 1)
+            cv2.imwrite(image_out_path, img)
             count += 1
             if count == limit:
                 break
@@ -71,6 +71,7 @@ def main():
                         help='If enabled, the images are imported into output '
                              'directory directly instead of hierarchical '
                              'directories.')
+    parser.add_argument('--n_image', default=210526)
     args = parser.parse_args()
 
     command = args.command
@@ -80,7 +81,7 @@ def main():
         if command == 'view':
             view(lmdb_path)
         elif command == 'export':
-            export_images(lmdb_path, args.out_dir, args.flat)
+            export_images(lmdb_path, args.out_dir, args.flat, args.n_image)
 
 
 if __name__ == '__main__':
